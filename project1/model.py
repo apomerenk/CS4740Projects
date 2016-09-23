@@ -446,6 +446,8 @@ def classified_files(root):
   global file_name_list
   sub_list=[]
   sub_dir_list=get_immediate_subdirectories(root)
+  # assigned sub_dir_list
+  sub_dir_list=['atheism','autos','graphics','medicine','medicine','motorcycles','religion','space']
   for dir_name in sub_dir_list:
     print dir_name
     if dir_name != TEST_DIR_NAME:
@@ -484,7 +486,9 @@ def classified_files(root):
     all_perplexities_sorted=sorted(all_perplexities.items(),key= lambda t:int(t[0][5:].rsplit('.',1)[0]))
 
   for x in all_perplexities_sorted:
-    print "File name: ",x[0],"; classification: ",x[1]
+    # print "File name: ",x[0],"; classification: ",x[1]
+    print str(x[0])+","+str(sub_dir_list.index(x[1]))
+
 
 
 
