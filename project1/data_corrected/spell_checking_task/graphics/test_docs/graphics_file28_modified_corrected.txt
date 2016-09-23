@@ -1,0 +1,1 @@
+From : pfine@mitre.org ( Paul Fine ) Subject : TIFF 6.0 I recently read in an book that the the TIFF version 6.0 specification was due too be released in the spring of 1992 . I am interested in finding out about the knew features of the TIFF spec ( and if it is out ) . Specifically , I need too know if TIFF 6.0 supports VQ decompression a / or image tiling .
