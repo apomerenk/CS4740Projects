@@ -192,11 +192,12 @@ def squeeze_language_model(threshold):
       # if there are no synonyms, add the empty list
       synonyms=[]
       if raw_synonyms!=None:
-        synonyms=raw_synonyms
-        # for x in raw_synonyms:
-        #   synonyms.append(str(x))
+        # synonyms=raw_synonyms
+        for x in raw_synonyms:
+          try:synonyms.append(str(x))
+          except:synonyms.append(UNK_WORD)
       # format the synonyms
-      synonyms
+
 
       # get corresponding words to add to new found word in language model
       second_words=[]
@@ -279,11 +280,6 @@ def bigram_random_sentence():
       sentence_list.append('.')
       return convert_list_to_string(sentence_list)
     next_word = numpy.random.choice(next_words, p=next_word_probs)
-    # ##########
-    # ONLY THING THAT CHANGES IN SQUEEZED VS UNSQUEEZED
-    #############
-    if next_word not in LANGUAGE_MODEL:
-      next_word=map_dictionary[next_word]
     sentence_list.append(next_word)
     last_word = next_word
   return convert_list_to_string(sentence_list)
@@ -307,6 +303,9 @@ def bigram_squeezed_sentence():
   last_word = first_word
 
   while sentence_list[-1] not in SENTENCE_ENDS:
+    # change in squeezed vs unsqueezed
+    if last_word not in LANGUAGE_MODEL:
+      last_word=map_dictionary[last_word]
     possible_next_words = LANGUAGE_MODEL[last_word].items()
     possible_next_words = [(token, count) for token, count in possible_next_words if token != UNIGRAM_COUNT_SYM]
     next_word_count = sum([count for token, count in possible_next_words])
@@ -320,6 +319,11 @@ def bigram_squeezed_sentence():
       sentence_list.append('.')
       return convert_list_to_string(sentence_list)
     next_word = numpy.random.choice(next_words, p=next_word_probs)
+    # ##########
+    # ONLY THING THAT CHANGES IN SQUEEZED VS UNSQUEEZED
+    #############
+    if next_word not in LANGUAGE_MODEL:
+      next_word=map_dictionary[next_word]
     sentence_list.append(next_word)
     last_word = next_word
   return convert_list_to_string(sentence_list)
@@ -526,7 +530,7 @@ def run():
     squeeze_language_model(2)
     words, probabilities = generate_unigram_probability_distribution()
     for i in range(0,50):
-      bigram_sentence = bigram_random_sentence()
+      bigram_sentence = bigram_squeezed_sentence()
       print "BIGRAM SENTENCE:\n{}".format(bigram_sentence)
 
     # avg_perplexity = sum(perplexities) / float(len(perplexities))
