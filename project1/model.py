@@ -19,18 +19,42 @@ for tokenizing within nltk by entering a python shell and entering the following
 From here, a new Python application will launch and prompt you to download the relevant
 nltk packages. Select and download all packages (~ 5 minutes).
 
+Also, you will have to install PyDictionary which can quickly be done with PIP:
+  > sudo pip install pydictionary
+
 In addition, you will need to have numpy installed in order for us to correctly sample
 our probability distributions for each language model.
 
 EXAMPLE USAGES
+==============
+
+-Random Sentence Generation:
 To generate random sentences from the command line from the root directory labeled 'project1', run:
-  >python model.py random_sentence <corpus_to_train_on>
-  >python model.py random_sentence autos
+  > python model.py random_sentence <corpus_to_train_on>
+  > python model.py random_sentence autos
+
+-Calculate Perplexity:
+  Note: We had to add 1 new line to the beginning of confusion_set.txt so that we didn't parse metadata.
+        If you're using your own downloaded version of the data_corrected/ dir, please add the new line. :)
+  > python model.py perplexity <unigram/bigram> <corpus_to_train_on>
+  > python model.py perplexity unigram space
+  > python model.py perplexity bigram religion
+
+-Classification of Test Documents
+  > python model.py classification
+
+-Synonym Extension Squeezing:
+  > python model.py squeezing <corpus_to_train_on>
+
+-Context Aware Spelling Correction
+  > python model.py spelling_correction <corpus_to_train_on>
+
+-Quick test email corpus
+  > python model.py test
+will run a quick test training on the TEST_EMAIL constant below
 
 If insufficient arguments are supplied to the application, it will prompt for the
-relevant command line arguments. Running:
-  >python model.py test
-will run a quick test training on the TEST_EMAIL constant below
+relevant command line arguments. 
 
 Enjoy! :)
 """
