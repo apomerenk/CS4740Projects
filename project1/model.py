@@ -4,6 +4,10 @@ import glob
 import sys
 import numpy
 import math
+from glob import glob
+from PyDictionary import PyDictionary
+
+
 
 """
 NOTES ON RUNNING THE LANGUAGE MODELS:
@@ -15,7 +19,7 @@ for tokenizing within nltk by entering a python shell and entering the following
   > import nltk
   > nltk.download()
 From here, a new Python application will launch and prompt you to download the relevant
-nltk packages. Select and download all packages (~ 5 minutes). 
+nltk packages. Select and download all packages (~ 5 minutes).
 
 In addition, you will need to have numpy installed in order for us to correctly sample
 our probability distributions for each language model.
@@ -37,7 +41,8 @@ TEST_ROOT_DIRECTORY = './atheism'
 ROOT_DIRECTORY = './data_corrected/classification task/'
 TEST_CLASSIFICATION_DIRECTORY = './data_corrected/classification task/test_for_classification'
 TEST_DIR_NAME = 'test_for_classification'
-PUNCT_TO_REMOVE = ['(', ')', '<', '>', ',', '/', '-', '"', 
+TEST_DIR_NAMEFULL='./data_corrected/classification task/test_for_classification/'
+PUNCT_TO_REMOVE = ['(', ')', '<', '>', ',', '/', '-', '"',
                    ':', '``', '*', '[', ']', '#', '|', "'", '$', '%',
                    '^', '~', "`", "\\", '_', '+', '{', '}', '=']
 UNIGRAM_COUNT_SYM = '*'
@@ -52,6 +57,9 @@ SENTENCE_ENDS = ['?', '!', '.']
 UNK_WORD = "unk"
 
 TEST_EMAIL = "the dog jumped over the log"
+
+# used for our synonym squeezing
+DICTIONARY=PyDictionary()
 
 def test_sample_string(test):
   tokens = nltk.word_tokenize(test)
@@ -124,10 +132,10 @@ def modify_unknown_words():
           else:
             del LANGUAGE_MODEL[token]
             LANGUAGE_MODEL[UNK_WORD][second_token] = bigram_count
-  
+
   # lower layer unk word replacement
   for token, token_dict in LANGUAGE_MODEL.items():
-    # add an entry for any token followed by UNK (token, UNK) 
+    # add an entry for any token followed by UNK (token, UNK)
     if UNK_WORD not in LANGUAGE_MODEL[token]:
       LANGUAGE_MODEL[token][UNK_WORD] = 0
     for second_token, bigram_count in token_dict.items():
@@ -164,6 +172,64 @@ def tokenize_files(root = TEST_ROOT_DIRECTORY):
         # update unigram and bigram counts for all tokens
         update_language_model(processed_tokens)
 
+def generate_synonyms(token):
+  return []
+
+
+map_dictionary=dict()
+def squeeze_language_model(threshold):
+
+# unigram probability distribution is same squeezed vs unsqueezed since it just looks at language model
+# unigram sentences are the same, just impossible to be a low probability word
+  global map_dictionary
+  # get all words that were in the unk set
+  # check if the count is less than or equal to threshhold
+  for token,token_dict in LANGUAGE_MODEL.items():
+    # check if token falls below threshhold and isnt a sentence marker
+    if token_dict[UNIGRAM_COUNT_SYM]<=threshold and token not in SENTENCE_ENDS:
+      # generate synonyms
+      raw_synonyms=(DICTIONARY.synonym(token))
+      # if there are no synonyms, add the empty list
+      synonyms=[]
+      if raw_synonyms!=None:
+        synonyms=raw_synonyms
+        # for x in raw_synonyms:
+        #   synonyms.append(str(x))
+      # format the synonyms
+      synonyms
+
+      # get corresponding words to add to new found word in language model
+      second_words=[]
+      for second_word,count in token_dict.items():
+        if second_word != UNIGRAM_COUNT_SYM:
+          second_words.append((second_word,count))
+      # iterate through ranked synonyms
+      counter=0
+      replaced=False
+      i=0
+      # go through synonyms while stopping when it gets replaced
+      while(len(synonyms)>0 and not replaced and i<len(synonyms)):
+      # for i in range(0,len(synonyms)):
+        # if the word is in the model, add the word into the language model for the synonym
+        if synonyms[i] in LANGUAGE_MODEL:
+          replaced=True
+          # increment the synonym count
+          LANGUAGE_MODEL[synonyms[i]][UNIGRAM_COUNT_SYM]+=token_dict[UNIGRAM_COUNT_SYM]
+          # add all the word's next words to the synonym, and update their count
+          for z,count in second_words:
+            if z in LANGUAGE_MODEL[synonyms[i]]:
+              LANGUAGE_MODEL[synonyms[i]][z]+=count
+            else:
+              LANGUAGE_MODEL[synonyms[i]][z]=count
+          # add the original word to the map dictionary to keep the functionality of synonyms
+          map_dictionary[token]=synonyms[i]
+
+          # remove the old word from the language model
+          del LANGUAGE_MODEL[token]
+      # TODO: if count is 1, remove from unk words
+        i+=1
+
+
 def generate_unigram_probability_distribution():
   word_list = []
   probability_list = []
@@ -186,7 +252,7 @@ def bigram_random_sentence():
   aggregate_count = LANGUAGE_MODEL['?'][UNIGRAM_COUNT_SYM] + LANGUAGE_MODEL['!'][UNIGRAM_COUNT_SYM] + LANGUAGE_MODEL['.'][UNIGRAM_COUNT_SYM]
   marker_probs = [LANGUAGE_MODEL['?'][UNIGRAM_COUNT_SYM]/float(aggregate_count), LANGUAGE_MODEL['!'][UNIGRAM_COUNT_SYM]/float(aggregate_count), LANGUAGE_MODEL['.'][UNIGRAM_COUNT_SYM]/float(aggregate_count)]
   sentence_marker = numpy.random.choice(SENTENCE_ENDS, p=marker_probs)
-  
+
   possible_next_words = LANGUAGE_MODEL[sentence_marker].items()
   possible_next_words = [(token, count) for token, count in possible_next_words if token != UNIGRAM_COUNT_SYM]
   sentence_marker_count = sum([count for token, count in possible_next_words])
@@ -198,7 +264,48 @@ def bigram_random_sentence():
   first_word = numpy.random.choice(next_words, p=next_word_probs)
   sentence_list.append(first_word.title())
   last_word = first_word
-  
+
+  while sentence_list[-1] not in SENTENCE_ENDS:
+    possible_next_words = LANGUAGE_MODEL[last_word].items()
+    possible_next_words = [(token, count) for token, count in possible_next_words if token != UNIGRAM_COUNT_SYM]
+    next_word_count = sum([count for token, count in possible_next_words])
+    next_word_probs = []
+    next_words = []
+    for token, count in possible_next_words:
+      next_word_probs.append(count/float(next_word_count))
+      next_words.append(token)
+    # edge case where there is no sentence terminator
+    if len(next_words) == 0:
+      sentence_list.append('.')
+      return convert_list_to_string(sentence_list)
+    next_word = numpy.random.choice(next_words, p=next_word_probs)
+    # ##########
+    # ONLY THING THAT CHANGES IN SQUEEZED VS UNSQUEEZED
+    #############
+    if next_word not in LANGUAGE_MODEL:
+      next_word=map_dictionary[next_word]
+    sentence_list.append(next_word)
+    last_word = next_word
+  return convert_list_to_string(sentence_list)
+
+def bigram_squeezed_sentence():
+  sentence_list = []
+  aggregate_count = LANGUAGE_MODEL['?'][UNIGRAM_COUNT_SYM] + LANGUAGE_MODEL['!'][UNIGRAM_COUNT_SYM] + LANGUAGE_MODEL['.'][UNIGRAM_COUNT_SYM]
+  marker_probs = [LANGUAGE_MODEL['?'][UNIGRAM_COUNT_SYM]/float(aggregate_count), LANGUAGE_MODEL['!'][UNIGRAM_COUNT_SYM]/float(aggregate_count), LANGUAGE_MODEL['.'][UNIGRAM_COUNT_SYM]/float(aggregate_count)]
+  sentence_marker = numpy.random.choice(SENTENCE_ENDS, p=marker_probs)
+
+  possible_next_words = LANGUAGE_MODEL[sentence_marker].items()
+  possible_next_words = [(token, count) for token, count in possible_next_words if token != UNIGRAM_COUNT_SYM]
+  sentence_marker_count = sum([count for token, count in possible_next_words])
+  next_word_probs = []
+  next_words = []
+  for token, count in possible_next_words:
+    next_word_probs.append(count/float(sentence_marker_count))
+    next_words.append(token)
+  first_word = numpy.random.choice(next_words, p=next_word_probs)
+  sentence_list.append(first_word.title())
+  last_word = first_word
+
   while sentence_list[-1] not in SENTENCE_ENDS:
     possible_next_words = LANGUAGE_MODEL[last_word].items()
     possible_next_words = [(token, count) for token, count in possible_next_words if token != UNIGRAM_COUNT_SYM]
@@ -236,7 +343,7 @@ def compute_total_bigram_counts():
   for token, token_dict in LANGUAGE_MODEL.iteritems():
     for second_token, bigram_count in token_dict.iteritems():
       # ignore the unigram count symbol and bigram counts greater than 10
-      if second_token != UNIGRAM_COUNT_SYM: 
+      if second_token != UNIGRAM_COUNT_SYM:
         # count total number of bigrams
         if bigram_count > 0:
           number_of_bigrams += 1
@@ -245,7 +352,7 @@ def compute_total_bigram_counts():
             BIGRAM_N_COUNTS[bigram_count] += 1
           else:
             BIGRAM_N_COUNTS[bigram_count] = 1
-  
+
   # finally, compute N(0) = |V|^2 - other bigrams
   BIGRAM_N_COUNTS[0] = len(VOCAB)*len(VOCAB) - number_of_bigrams
 
@@ -276,16 +383,16 @@ def compute_perplexity(file_name, tokens):
       second = UNK_WORD
 
     #print "(first,second): ({}, {})".format(first,second)
-    
+
     following_word_counts = [count for token,count in LANGUAGE_MODEL[first].items() if token != UNIGRAM_COUNT_SYM]
     # known word probability calculation
     bigram_prob = LANGUAGE_MODEL[first][second] / float(sum(following_word_counts))
     # if it was changed to an unknown word, we need to use the UNK count for the probability calculation
     if second == UNK_WORD:
       bigram_prob = LANGUAGE_MODEL[first][UNK_WORD] / float(sum(following_word_counts))
-      print "N(1) N(0): {}, {}".format(BIGRAM_N_COUNTS[1], BIGRAM_N_COUNTS[0])
-      print "real value: {}".format(float(BIGRAM_N_COUNTS[1]) / BIGRAM_N_COUNTS[0] / sum(following_word_counts))
-      print "bigram p: {}".format(bigram_prob)
+      # print "N(1) N(0): {}, {}".format(BIGRAM_N_COUNTS[1], BIGRAM_N_COUNTS[0])
+      # print "real value: {}".format(float(BIGRAM_N_COUNTS[1]) / BIGRAM_N_COUNTS[0] / sum(following_word_counts))
+      # print "bigram p: {}".format(bigram_prob)
     # log base 2 used
     temp_sum -= math.log(bigram_prob, 2)
     #print "temp_sum: {}\n".format(temp_sum)
@@ -295,11 +402,15 @@ def compute_perplexity(file_name, tokens):
   #print "{} perplexity = {}".format(file_name, perplexity)
   perplexities.append(perplexity)
 
+file_name_list=[]
 def tokenize_perplexity_file(root):
+  global file_name_list
   for dir_name, sub_dir_list, file_list in os.walk(root):
+    # print file_name_list
     if dir_name != TEST_DIR_NAME:
       # selectively filter out hidden files
       file_list = [f for f in file_list if f[0] != '.']
+      file_name_list=file_list
       for file_name in file_list:
         file_path = os.path.join(dir_name, file_name)
         file_content = open(file_path).read()
@@ -310,6 +421,66 @@ def tokenize_perplexity_file(root):
         # compute perplexity of given file tokens
         compute_perplexity(file_name, processed_tokens)
 
+all_perplexities=dict()
+
+def get_immediate_subdirectories(a_dir):
+    return [name for name in os.listdir(a_dir)
+            if os.path.isdir(os.path.join(a_dir, name))]
+def get_immediate_files(a_dir):
+    return [name for name in os.listdir(a_dir)
+            if os.path.isfile(os.path.join(a_dir, name))]
+
+# call on ROOT_DIRECTORY
+def classified_files(root):
+  global LANGUAGE_MODEL
+  global perplexities
+  global BIGRAM_N_COUNTS
+  global CORPUS_WORD_COUNT
+  global UNK_WORD_COUNT
+  global UNK_WORD_SET
+  global VOCAB
+  global file_name_list
+  sub_list=[]
+  sub_dir_list=get_immediate_subdirectories(root)
+  for dir_name in sub_dir_list:
+    print dir_name
+    if dir_name != TEST_DIR_NAME:
+      tokenize_files(root+dir_name)
+      modify_unknown_words()
+      compute_total_bigram_counts()
+      compute_good_turing_counts()
+      tokenize_perplexity_file(TEST_CLASSIFICATION_DIRECTORY)
+
+      for x in range(0,len(perplexities)):
+        file_name=file_name_list[x]
+        if file_name in all_perplexities:
+          all_perplexities[file_name].append((dir_name,perplexities[x]))
+        else:
+          all_perplexities[file_name]=[]
+          all_perplexities[file_name].append((dir_name,perplexities[x]))
+
+      print 'perplexities calculated'
+      LANGUAGE_MODEL=dict()
+      BIGRAM_N_COUNTS = dict()
+      CORPUS_WORD_COUNT = 0
+      UNK_WORD_COUNT = 0
+      UNK_WORD_SET = set()
+      VOCAB = set()
+      perplexities=[]
+  print 'all perplexities calculated, calculating minimums'
+
+  # go through all_perplexities and find lowest
+  for file_name in all_perplexities:
+    # print file_name
+    # file_perplexities=all_perplexities[file_name]
+    # lowest_index=file_perplexities.index(min(file_perplexities))
+    classification=min(all_perplexities[file_name], key = lambda t: t[1])
+    # classification=sub_dir_list[lowest_index]
+    all_perplexities[file_name]=classification[0]
+    all_perplexities_sorted=sorted(all_perplexities.items(),key= lambda t:int(t[0][5:].rsplit('.',1)[0]))
+
+  for x in all_perplexities_sorted:
+    print "File name: ",x[0],"; classification: ",x[1]
 
 
 
@@ -317,11 +488,11 @@ def tokenize_perplexity_file(root):
 def run():
   if len(sys.argv) < 2:
     print 'Insufficient Arguments: Please provide a corpus to train on!'
-  
+
   # TEST EMAIL
   elif sys.argv[1] == 'test':
     test_sample_string(TEST_EMAIL)
-  
+
   # RANDOM SENTENCE GENERATION
   elif sys.argv[1] == 'random_sentence':
     print "Learning on the {} corpus...\n".format(sys.argv[1])
@@ -331,7 +502,7 @@ def run():
     print "UNIGRAM SENTENCE:\n{}\n".format(unigram_sentence)
     bigram_sentence = bigram_random_sentence()
     print "BIGRAM SENTENCE:\n{}".format(bigram_sentence)
-  
+
   # PERPLEXITY CALCULATION
   elif sys.argv[1] == 'perplexity':
     print "Computing perplexity value for the {} corpus...\n".format(sys.argv[2])
@@ -341,8 +512,25 @@ def run():
     compute_good_turing_counts()
     tokenize_perplexity_file(TEST_CLASSIFICATION_DIRECTORY)
 
-    avg_perplexity = sum(perplexities) / float(len(perplexities))
-    print "average perplexity: {}".format(avg_perplexity)
+  # CLASSIFICATION
+  elif sys.argv[1] == 'classification':
+    print "classifying"
+    classified_files(ROOT_DIRECTORY)
+
+  # SQUEEZING
+  elif sys.argv[1] == 'squeezing':
+    print "SQUEEZING on the {} corpus...\n".format(sys.argv[1])
+    print "Heads up, this will take a while to go through all the API calls to get synonyms (ETA 10-20 minutes)"
+    print "ignore the warning below"
+    tokenize_files(ROOT_DIRECTORY + sys.argv[2])
+    squeeze_language_model(2)
+    words, probabilities = generate_unigram_probability_distribution()
+    for i in range(0,50):
+      bigram_sentence = bigram_random_sentence()
+      print "BIGRAM SENTENCE:\n{}".format(bigram_sentence)
+
+    # avg_perplexity = sum(perplexities) / float(len(perplexities))
+    # print "average perplexity: {}".format(avg_perplexity)
 
   else:
     print 'fill this out'
