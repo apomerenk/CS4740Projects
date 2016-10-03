@@ -181,7 +181,7 @@ def modify_unigram_unknown_words():
     if unigram_count <= 1:
       LANGUAGE_MODEL[UNK_WORD][UNIGRAM_COUNT_SYM] += unigram_count
       del LANGUAGE_MODEL[token]
-    
+
 def preprocess_file_tokens(tokens):
   # removes extraneous punctuation
   filtered_tokens = filter(lambda token: token not in PUNCT_TO_REMOVE, tokens)
@@ -409,7 +409,7 @@ def compute_total_unigram_counts():
         UNIGRAM_N_COUNTS[unigram_count] += 1
       else:
         UNIGRAM_N_COUNTS[unigram_count] = 1
-  
+
   # we do not compute the UNIGRAM_N_COUNTS[0] value as it does not exist
   # single appearance unigrams are simply the UNK word count
   UNIGRAM_N_COUNTS[1] = LANGUAGE_MODEL[UNK_WORD][UNIGRAM_COUNT_SYM]
@@ -507,7 +507,7 @@ def tokenize_spelling_test_files(root, misspelled_words):
       file_content = open(file_path).read()
       tokens = file_content.split()
       update_language_model(tokens)
-      
+
   # tokenize new test files for correction (without any pre-processing)
   for dir_name, sub_dir_list, file_list in os.walk(root+'/train_modified_docs'):
     file_list = [f for f in file_list if f[0] != '.']
@@ -537,7 +537,7 @@ def retreive_higher_probability(first, second, misspelled_words):
     p_2 = LANGUAGE_MODEL[first.lower()][opt_2]
   else:
     p_2 = 0
-  
+
   if p_1 > p_2:
     return opt_1
   elif p_1 < p_2:
@@ -638,8 +638,9 @@ def run():
     words, probabilities = generate_unigram_probability_distribution()
     unigram_sentence = unigram_random_sentence(words, probabilities)
     print "UNIGRAM SENTENCE:\n{}\n".format(unigram_sentence)
-    bigram_sentence = bigram_random_sentence()
-    print "BIGRAM SENTENCE:\n{}".format(bigram_sentence)
+    for x in range (0,200):
+      bigram_sentence = bigram_random_sentence()
+      print "BIGRAM SENTENCE:\n{}".format(bigram_sentence)
 
   # PERPLEXITY CALCULATION
   elif sys.argv[1] == 'perplexity':
@@ -684,7 +685,7 @@ def run():
     tokenize_files(ROOT_DIRECTORY + sys.argv[2])
     squeeze_language_model(2)
     words, probabilities = generate_unigram_probability_distribution()
-    for i in range(0,50):
+    for i in range(0,200):
       bigram_sentence = bigram_squeezed_sentence()
       print "BIGRAM SENTENCE:\n{}".format(bigram_sentence)
 

@@ -1,0 +1,18 @@
+Design Choices
+
+Using python for simplicity and the abundance of language processing packages
+
+part2:
+
+take out first from and subject
+
+take out all emails after tokenizing
+
+take out all < > , " " / - 
+
+take out single quotes for contractions, then replace after generating sentences
+
+uppercase first word in sentence
+
+IMPORTANT
+using bigram aggregate count instead of unigram count because of end of file issues
