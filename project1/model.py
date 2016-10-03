@@ -54,7 +54,7 @@ To generate random sentences from the command line from the root directory label
 will run a quick test training on the TEST_EMAIL constant below
 
 If insufficient arguments are supplied to the application, it will prompt for the
-relevant command line arguments. 
+relevant command line arguments.
 
 Enjoy! :)
 """
