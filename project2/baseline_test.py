@@ -7,83 +7,113 @@ import math
 from glob import glob
 from PyDictionary import PyDictionary
 
-TRAIN_DIR='./train'
+TRAIN_DIR = './train'
+TEST_PUBLIC_DIR = './test-public'
+TEST_PRIVATE_DIR = './test-private'
 
-def baseline_test(directory_name):
+def baseline_test():
   print "Baseline test starting...\n"
+  uncertain_phrases = []
 
-  uncertain_phrases=[]
-
-  for dir_name, sub_dir_list, file_list in os.walk(directory_name):
+  for dir_name, sub_dir_list, file_list in os.walk(TRAIN_DIR):
+    # ignore hidden files
     file_list = [f for f in file_list if f[0] != '.']
-    index_train=int(len(file_list)*float(.9))
-    file_list_train=file_list[:index_train]
-    file_list_validation=file_list[index_train:]
-    for file_name in file_list_train:
-      file_path=os.path.join(directory_name,file_name)
-      file_content = open(file_path).read()
-      tokens = file_content.split()
 
+    for file_name in file_list:
+      file_path = os.path.join(TRAIN_DIR,file_name)
+      file_content = open(file_path)
       uncertain_phrase=[]
       cue_index=0
-      # break into three value elements
-      for x in range(0,int(len(tokens)/3)):
-        word=tokens[x*3].lower()
-        POS=tokens[x*3+1]
-        uncertainty=tokens[x*3+2]
-        # reached end of sentence
-        if word=='.':
-          cue_index=0
+      
+      for line in iter(file_content):
+        # don't count empty lines
+        if line != '\n':
+          line_values = line.split()
+          word = line_values[0]
+          POS = line_values[1]
+          uncertainty = line_values[2]
 
-        phrase_not_added=True
+          if word == '.':
+            cue_index=0
 
-        if (uncertainty!= '_' and int(uncertainty[4:]) > cue_index) or (uncertainty == '_' and phrase_not_added):
-          # add phrase to uncertainphrases
-          if uncertain_phrase not in uncertain_phrases:
-            uncertain_phrases.append(uncertain_phrase)
-          # increment cue index
-          cue_index+=1
-          # reset phrase
-          uncertain_phrase=[]
           phrase_not_added=True
 
-        # if the word is an uncertainty
-        if uncertainty != '_':
-          # check if a new cue index
-          # continuation of last uncertain phrase
-          uncertain_phrase.append(word)
-          phrase_not_added=True
+          if (uncertainty != '_' and int(uncertainty[4:]) > cue_index) or (uncertainty == '_' and phrase_not_added):
+            # add phrase to uncertainphrases
+            if uncertain_phrase not in uncertain_phrases:
+              uncertain_phrases.append(uncertain_phrase)
+            # increment cue index
+            cue_index+=1
+            # reset phrase
+            uncertain_phrase=[]
+            phrase_not_added=True
 
-    total_uncertain_tokens = 0
-    total_accurate_predictions = 0
-    flattened_uncertain_phrases = [val for sublist in uncertain_phrases for val in sublist]
-
-    for file_name in file_list_validation:
-      file_path=os.path.join(directory_name,file_name)
-      file_content = open(file_path).read()
-      tokens = file_content.split()
-
-      # break into three value elements
-      for x in range(0,int(len(tokens)/3)):
-        word=tokens[x*3].lower()
-        POS=tokens[x*3+1]
-        uncertainty=tokens[x*3+2]
-
-        # count all the uncertain taggings that appear
-        if uncertainty != '_':
-          total_uncertain_tokens += 1
-
-        # record accurate predictions of uncertain words
-        if word in flattened_uncertain_phrases and uncertainty != '_':
-          total_accurate_predictions += 1
+          # if the word is an uncertainty
+          if uncertainty != '_':
+            # check if a new cue index
+            # continuation of last uncertain phrase
+            uncertain_phrase.append(word)
+            phrase_not_added=True
   
-  print "BASELINE ACCURACY: {} / {} => {}".format(total_accurate_predictions, total_uncertain_tokens, float(total_accurate_predictions)/total_uncertain_tokens)
+  token_count = -1
+  flattened_uncertain_phrases = [val for sublist in uncertain_phrases for val in sublist]
+  final_str = "Type,Spans\nCUE-public,"
+  new_file = open('kaggle_submission.txt', 'w')
+  
+  for dir_name, sub_dir_list, file_list in os.walk(TEST_PUBLIC_DIR):
+    file_list = [f for f in file_list if f[0] != '.']
+    for file_name in file_list:
+      file_path = os.path.join(TEST_PUBLIC_DIR,file_name)
+      file_content = open(file_path)
+      
+      for line in iter(file_content):
+        # don't count empty lines
+        if line != '\n':
+          line_values = line.split()
+          word = line_values[0]
+          POS = line_values[1]
+
+          # record predictions of uncertain words
+          if word in flattened_uncertain_phrases:
+            final_str += str(token_count) + '-' + str(token_count) + ' '
+          
+          # count every token encountered
+          token_count += 1
+
+  # cut off final space
+  final_str = final_str[:-1]
+  # add in empty slot for sentence ambiguity prediction
+  final_str += '\nCUE-private,'
+  token_count = -1
+
+  for dir_name, sub_dir_list, file_list in os.walk(TEST_PRIVATE_DIR):
+    file_list = [f for f in file_list if f[0] != '.']
+    for file_name in file_list:
+      file_path = os.path.join(TEST_PRIVATE_DIR,file_name)
+      file_content = open(file_path)
+      
+      for line in iter(file_content):
+        # don't count empty lines
+        if line != '\n':
+          line_values = line.split()
+          word = line_values[0]
+          POS = line_values[1]
+
+          # record predictions of uncertain words
+          if word in flattened_uncertain_phrases:
+            final_str += str(token_count) + '-' + str(token_count) + ' '
+          
+          # count every token encountered
+          token_count += 1
+
+  # cut off final space
+  final_str = final_str[:-1]
+  new_file.write(final_str)
+  new_file.close()
+  print token_count
 
 def run():
-  if len(sys.argv) < 2:
-    print 'Insufficient Arguments: Please provide valid directory'
-  elif sys.argv[1]=='baseline':
-    baseline_test(TRAIN_DIR)
+  baseline_test()
 
 if __name__=='__main__':
   run()
